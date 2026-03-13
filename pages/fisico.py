@@ -6,8 +6,8 @@ Incluye: visualizaciones Plotly, botón imprimir, exportar a PDF
 
 import streamlit as st
 from data.database import (
-    query_rendimiento, get_equipos_lista, get_jugadores_lista,
-    get_db_info, init_database,
+    query_rendimiento, get_equipos_fisico_lista, get_jugadores_lista,
+    get_db_info, init_database, query_evolucion_jugador,
 )
 from data.api_client import render_api_key_input, fetch_matches
 from utils.charts import (
@@ -73,7 +73,8 @@ def render() -> None:
 
         with col1:
             try:
-                equipos = ["Todos"] + get_equipos_lista()
+                # Usar equipos de rendimiento_fisico para que los nombres coincidan
+                equipos = ["Todos"] + get_equipos_fisico_lista()
             except Exception:
                 equipos = ["Todos"]
             equipo_sel = st.selectbox("🏟️ Equipo:", equipos, key="eq_fisico")
@@ -155,27 +156,29 @@ def render() -> None:
         with v2:
             st.plotly_chart(chart_demarcacion_box(df), use_container_width=True)
 
-        # Gráfico de evolución (solo si hay un jugador concreto)
-        if jugador_sel != "Todos" and "Jornada" in df.columns:
-            st.plotly_chart(
-                chart_evolucion_jornada(df, jugador_sel),
-                use_container_width=True,
-            )
-        else:
-            # Selector para elegir un jugador del conjunto filtrado
-            if "Alias" in df.columns:
-                jugadores_disp = sorted(df["Alias"].dropna().unique().tolist())
-                if jugadores_disp:
-                    st.markdown("##### 📈 Evolución temporal de un jugador")
-                    jug_evo = st.selectbox(
-                        "Selecciona jugador para ver su evolución:",
-                        jugadores_disp[:50],  # limitar lista desplegable
-                        key="jug_evo",
-                    )
-                    st.plotly_chart(
-                        chart_evolucion_jornada(df, jug_evo),
-                        use_container_width=True,
-                    )
+        # Gráfico de evolución — siempre consulta TODAS las jornadas del jugador
+        st.markdown("##### 📈 Evolución temporal de un jugador")
+        if "Alias" in df.columns:
+            jugadores_disp = sorted(df["Alias"].dropna().unique().tolist())
+            if jugadores_disp:
+                # Si ya hay un jugador seleccionado en el filtro, usarlo por defecto
+                default_idx = (
+                    jugadores_disp.index(jugador_sel)
+                    if jugador_sel != "Todos" and jugador_sel in jugadores_disp
+                    else 0
+                )
+                jug_evo = st.selectbox(
+                    "Selecciona jugador para ver su evolución:",
+                    jugadores_disp,
+                    index=default_idx,
+                    key="jug_evo",
+                )
+                # Consulta independiente con TODAS las jornadas (sin límite)
+                df_evo = query_evolucion_jugador(jug_evo)
+                st.plotly_chart(
+                    chart_evolucion_jornada(df_evo, jug_evo),
+                    use_container_width=True,
+                )
 
         # ── Exportar PDF ─────────────────────────────────────────────────
         if export_pdf_clicked:

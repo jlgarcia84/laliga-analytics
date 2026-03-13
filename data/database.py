@@ -148,6 +148,34 @@ def get_equipos_lista() -> list[str]:
 
 
 @st.cache_data(ttl=600, show_spinner=False)
+def get_equipos_fisico_lista() -> list[str]:
+    """Devuelve la lista de equipos únicos de la tabla rendimiento_fisico.
+    Se usa en la página Físico para que los nombres coincidan exactamente."""
+    init_database()
+    conn = sqlite3.connect(DB_PATH)
+    df = pd.read_sql_query(
+        "SELECT DISTINCT Equipo FROM rendimiento_fisico ORDER BY Equipo", conn
+    )
+    conn.close()
+    return df["Equipo"].dropna().tolist()
+
+
+@st.cache_data(ttl=300, show_spinner=False)
+def query_evolucion_jugador(jugador: str) -> pd.DataFrame:
+    """Devuelve TODAS las jornadas de un jugador concreto (sin límite de filas).
+    Se usa para el gráfico de evolución temporal."""
+    init_database()
+    conn = sqlite3.connect(DB_PATH)
+    df = pd.read_sql_query(
+        "SELECT Jornada, [Minutos jugados] FROM rendimiento_fisico "
+        "WHERE Alias = ? ORDER BY Jornada",
+        conn, params=(jugador,)
+    )
+    conn.close()
+    return df
+
+
+@st.cache_data(ttl=600, show_spinner=False)
 def get_jugadores_lista(equipo: str | None = None) -> list[str]:
     """Devuelve la lista de jugadores (Alias) únicos, opcionalmente por equipo."""
     init_database()
