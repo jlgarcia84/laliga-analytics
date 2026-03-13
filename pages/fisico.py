@@ -93,10 +93,32 @@ def render() -> None:
                 "Máx. registros:", 50, 500, 200, step=50, key="lim_fisico"
             )
 
+        # Filtro de jornadas (rango)
+        col4, col5 = st.columns(2)
+        with col4:
+            jornada_min = st.number_input(
+                "📅 Jornada desde:", min_value=1, max_value=38, value=1,
+                step=1, key="jornada_min"
+            )
+        with col5:
+            jornada_max = st.number_input(
+                "📅 Jornada hasta:", min_value=1, max_value=38, value=38,
+                step=1, key="jornada_max"
+            )
+        if jornada_min > jornada_max:
+            st.warning("⚠️ La jornada inicial no puede ser mayor que la final.")
+            jornada_min, jornada_max = 1, 38
+
         # ── Consulta ─────────────────────────────────────────────────────
         try:
             with st.spinner("Consultando base de datos…"):
                 df = query_rendimiento(equipo_sel, jugador_sel, limite)
+                # Aplicar filtro de jornadas sobre el resultado
+                if "Jornada" in df.columns:
+                    df = df[
+                        (df["Jornada"] >= jornada_min) &
+                        (df["Jornada"] <= jornada_max)
+                    ]
         except Exception as e:
             st.error(f"Error BD: {e}")
             return

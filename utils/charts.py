@@ -277,12 +277,18 @@ def chart_demarcacion_box(df: pd.DataFrame) -> go.Figure:
 def chart_evolucion_jornada(df: pd.DataFrame, jugador: str) -> go.Figure:
     """
     Línea temporal: evolución de minutos jugados por jornada para un jugador.
+    Acepta tanto un df completo (con columna Alias) como uno ya filtrado
+    por jugador (solo columnas Jornada y Minutos jugados).
     """
-    needed = {"Alias", "Jornada", "Minutos jugados"}
-    if not needed.issubset(df.columns):
+    if "Jornada" not in df.columns or "Minutos jugados" not in df.columns:
         return _empty_fig("Columnas de jornada no disponibles")
 
-    df_jug = df[df["Alias"] == jugador][["Jornada", "Minutos jugados"]].copy()
+    # Si el df ya viene filtrado por jugador (sin columna Alias), usarlo directo
+    if "Alias" in df.columns:
+        df_jug = df[df["Alias"] == jugador][["Jornada", "Minutos jugados"]].copy()
+    else:
+        df_jug = df[["Jornada", "Minutos jugados"]].copy()
+
     df_jug = df_jug.sort_values("Jornada")
 
     if df_jug.empty:
