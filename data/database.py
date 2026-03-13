@@ -118,16 +118,19 @@ def query_rendimiento(
     equipo: str | None = None,
     jugador: str | None = None,
     limite: int = 500,
+    jornada_min: int = 1,
+    jornada_max: int = 38,
 ) -> pd.DataFrame:
     """
     Consulta la tabla rendimiento_fisico con filtros opcionales.
+    El filtro de jornadas se aplica en SQL antes del LIMIT.
     Resultado cacheado 5 minutos.
     """
     init_database()
     conn = sqlite3.connect(DB_PATH)
 
-    conditions = []
-    params: list = []
+    conditions = ["Jornada >= ?", "Jornada <= ?"]
+    params: list = [jornada_min, jornada_max]
 
     if equipo and equipo != "Todos":
         conditions.append("Equipo = ?")
@@ -136,8 +139,8 @@ def query_rendimiento(
         conditions.append("Alias = ?")
         params.append(jugador)
 
-    where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
-    sql = f"SELECT * FROM rendimiento_fisico {where} LIMIT {limite}"
+    where = f"WHERE {' AND '.join(conditions)}"
+    sql = f"SELECT * FROM rendimiento_fisico {where} ORDER BY Jornada, Equipo LIMIT {limite}"
 
     df = pd.read_sql_query(sql, conn, params=params)
     conn.close()

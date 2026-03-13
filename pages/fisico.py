@@ -115,16 +115,13 @@ def render() -> None:
             st.warning("⚠️ La jornada inicial no puede ser mayor que la final.")
             jornada_min, jornada_max = 1, 38
 
-        # ── Consulta ─────────────────────────────────────────────────────
+        # ── Consulta (jornadas filtradas en SQL, antes del LIMIT) ────────
         try:
             with st.spinner("Consultando base de datos…"):
-                df = query_rendimiento(equipo_sel, jugador_sel, limite)
-                # Aplicar filtro de jornadas sobre el resultado
-                if "Jornada" in df.columns:
-                    df = df[
-                        (df["Jornada"] >= jornada_min) &
-                        (df["Jornada"] <= jornada_max)
-                    ]
+                df = query_rendimiento(
+                    equipo_sel, jugador_sel, limite,
+                    int(jornada_min), int(jornada_max),
+                )
         except Exception as e:
             st.error(f"Error BD: {e}")
             return
