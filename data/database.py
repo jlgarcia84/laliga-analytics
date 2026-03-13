@@ -167,10 +167,9 @@ def get_equipos_fisico_lista() -> list[str]:
     return df["Equipo"].dropna().tolist()
 
 
-@st.cache_data(ttl=300, show_spinner=False)
 def query_evolucion_jugador(jugador: str) -> pd.DataFrame:
     """Devuelve TODAS las jornadas de un jugador leyendo directamente del CSV.
-    Lee del CSV (no del SQLite) para garantizar datos completos en todo momento."""
+    Sin caché para garantizar siempre datos frescos y completos."""
     try:
         df = pd.read_csv(
             CSV_FISICO,

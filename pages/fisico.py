@@ -195,8 +195,9 @@ def render() -> None:
                     index=default_idx,
                     key="jug_evo",
                 )
-                # Consulta independiente con TODAS las jornadas (sin límite)
+                # Consulta independiente con TODAS las jornadas (sin límite ni caché)
                 df_evo = query_evolucion_jugador(jug_evo)
+                st.caption(f"🔍 Debug: {len(df_evo)} jornadas encontradas para {jug_evo}")
                 st.plotly_chart(
                     chart_evolucion_jornada(df_evo, jug_evo),
                     use_container_width=True,
