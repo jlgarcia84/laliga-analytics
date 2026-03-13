@@ -169,17 +169,21 @@ def get_equipos_fisico_lista() -> list[str]:
 
 @st.cache_data(ttl=300, show_spinner=False)
 def query_evolucion_jugador(jugador: str) -> pd.DataFrame:
-    """Devuelve TODAS las jornadas de un jugador concreto (sin límite de filas).
-    Se usa para el gráfico de evolución temporal."""
-    init_database()
-    conn = sqlite3.connect(DB_PATH)
-    df = pd.read_sql_query(
-        "SELECT Jornada, [Minutos jugados] FROM rendimiento_fisico "
-        "WHERE Alias = ? ORDER BY Jornada",
-        conn, params=(jugador,)
-    )
-    conn.close()
-    return df
+    """Devuelve TODAS las jornadas de un jugador leyendo directamente del CSV.
+    Lee del CSV (no del SQLite) para garantizar datos completos en todo momento."""
+    try:
+        df = pd.read_csv(
+            CSV_FISICO,
+            encoding="utf-8-sig",
+            usecols=["Alias", "Jornada", "Minutos jugados"],
+        )
+        return (
+            df[df["Alias"] == jugador][["Jornada", "Minutos jugados"]]
+            .sort_values("Jornada")
+            .reset_index(drop=True)
+        )
+    except Exception:
+        return pd.DataFrame(columns=["Jornada", "Minutos jugados"])
 
 
 @st.cache_data(ttl=600, show_spinner=False)

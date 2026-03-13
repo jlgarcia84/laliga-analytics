@@ -24,6 +24,7 @@ Estrategia de TTL en esta aplicación:
 
 from __future__ import annotations
 from datetime import datetime, timedelta
+import os
 import streamlit as st
 
 
@@ -119,10 +120,18 @@ def _ttl_bar(ttl_s: int, max_s: int = 3600) -> str:
 
 def clear_all_cache() -> None:
     """
-    Invalida toda la caché de st.cache_data.
-    La próxima llamada a cualquier función cacheada recalculará su resultado.
+    Invalida toda la caché de st.cache_data Y borra el archivo SQLite
+    para que se regenere desde cero en el próximo acceso.
     """
     st.cache_data.clear()
+    # Borrar el archivo .db para forzar recreación completa desde los CSV/Excel
+    try:
+        _app_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        db_path = os.path.join(_app_dir, "laliga.db")
+        if os.path.exists(db_path):
+            os.remove(db_path)
+    except Exception:
+        pass
 
 
 def render_cache_dashboard() -> None:
