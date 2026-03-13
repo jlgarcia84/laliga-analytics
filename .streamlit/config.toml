@@ -1,0 +1,19 @@
+# .streamlit/config.toml
+# Configuración de la aplicación Streamlit
+# ─────────────────────────────────────────
+
+[server]
+headless = true           # Necesario para despliegue en la nube
+enableCORS = false
+enableXsrfProtection = true
+
+[browser]
+gatherUsageStats = false  # No enviar estadísticas de uso a Streamlit
+
+[theme]
+base = "dark"
+primaryColor = "#64ffda"
+backgroundColor = "#0f1117"
+secondaryBackgroundColor = "#1a1d27"
+textColor = "#ccd6f6"
+font = "sans serif"

@@ -1,0 +1,44 @@
+# ── Secretos y datos sensibles (NUNCA subir a Git) ──
+.streamlit/secrets.toml
+
+# ── Archivos Excel grandes (>100 MB, límite GitHub) ──
+LaLigaRendimiento2024_2025.xlsm
+
+# ── Base de datos local (se regenera automáticamente) ──
+*.db
+*.sqlite
+*.sqlite3
+
+# ── Python ──
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# ── Entornos virtuales ──
+venv/
+.venv/
+env/
+.env/
+
+# ── macOS ──
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# ── IDEs ──
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ── Jupyter ──
+.ipynb_checkpoints/
+
+# ── Logs ──
+*.log
