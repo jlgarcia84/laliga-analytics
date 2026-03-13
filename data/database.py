@@ -35,33 +35,40 @@ CSV_FISICO   = os.path.join(_APP_DIR, "LaLigaRendimiento_Fisico.csv")
 
 def init_database() -> bool:
     """
-    Crea la base de datos SQLite e importa los datos de los Excel si aún
-    no existe. Se llama de forma lazy antes de cualquier consulta.
+    Crea la base de datos SQLite e importa los datos si aún no existe
+    O si las tablas están vacías (puede ocurrir si el primer deploy falló
+    porque los ficheros de datos aún no estaban en el repositorio).
 
-    Retorna True si la BD estaba ya creada, False si se acaba de crear.
+    Retorna True si la BD ya tenía datos, False si se acaba de crear.
     """
-    already_exists = os.path.exists(DB_PATH)
-
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
 
-    # Comprobar si las tablas ya existen
+    # Comprobar si las tablas existen Y tienen datos suficientes
     cursor.execute(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name='equipos_stats'"
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='rendimiento_fisico'"
     )
     table_exists = cursor.fetchone() is not None
 
-    if not table_exists:
+    row_count = 0
+    if table_exists:
+        cursor.execute("SELECT COUNT(*) FROM rendimiento_fisico")
+        row_count = cursor.fetchone()[0]
+
+    # Recrear si no existe o si está vacía/incompleta (< 100 filas)
+    needs_create = not table_exists or row_count < 100
+
+    if needs_create:
         _create_tables(conn)
 
     conn.close()
-    return table_exists
+    return not needs_create
 
 
 def _create_tables(conn: sqlite3.Connection) -> None:
-    """Importa los Excel y crea las tablas en la base de datos."""
+    """Importa los ficheros de datos y crea/recrea las tablas en la BD."""
 
-    with st.spinner("⏳ Primera ejecución: creando base de datos SQLite desde los Excel…"):
+    with st.spinner("⏳ Creando base de datos SQLite desde los ficheros de datos…"):
 
         # ── Tabla equipos_stats ──────────────────────────────────────────
         try:
