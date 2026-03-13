@@ -217,184 +217,176 @@ def chart_tiros(df: pd.DataFrame) -> go.Figure:
 def chart_distancia_por_jornada(df: pd.DataFrame, top_n: int = 15) -> go.Figure:
     """
     Barras horizontales APILADAS: distancia total por jornada para los Top N jugadores.
-    Cada barra acumulada corresponde a una jornada del rango seleccionado en el filtro.
-    Los valores se muestran en km (el CSV almacena metros).
+    Cada barra corresponde a una jornada del rango seleccionado en el filtro.
     """
     needed = {"Alias", "Jornada", "Distancia Total"}
     if not needed.issubset(df.columns):
         return _empty_fig("Columnas de distancia no disponibles")
 
-    df_work = df[["Alias", "Jornada", "Distancia Total"]].dropna().copy()
-    # Convertir metros → km
-    df_work["Distancia Total"] = df_work["Distancia Total"] / 1000.0
+    try:
+        # Agregar por Alias+Jornada para evitar duplicados, convertir a km
+        df_work = (
+            df[["Alias", "Jornada", "Distancia Total"]]
+            .dropna()
+            .copy()
+        )
+        df_work["Distancia Total"] = pd.to_numeric(
+            df_work["Distancia Total"], errors="coerce"
+        ).fillna(0) / 1000.0
 
-    # Top N jugadores por distancia total acumulada en el rango
-    top_players = (
-        df_work.groupby("Alias")["Distancia Total"]
-        .sum()
-        .nlargest(top_n)
-        .index.tolist()
-    )
-    df_work = df_work[df_work["Alias"].isin(top_players)]
+        # Pivot: filas=Alias, columnas=Jornada, valores=suma de distancia
+        pivot = (
+            df_work.groupby(["Alias", "Jornada"])["Distancia Total"]
+            .sum()
+            .unstack(fill_value=0.0)
+        )
 
-    # Orden de jugadores (mayor dist. arriba → ascending para eje Y invertido de Plotly)
-    order = (
-        df_work.groupby("Alias")["Distancia Total"]
-        .sum()
-        .sort_values(ascending=True)
-        .index.tolist()
-    )
+        # Top N jugadores por distancia total
+        pivot["_total"] = pivot.sum(axis=1)
+        pivot = pivot.nlargest(top_n, "_total").drop(columns="_total")
+        pivot = pivot.loc[pivot.sum(axis=1).sort_values(ascending=True).index]
 
-    jornadas = sorted(df_work["Jornada"].dropna().unique().astype(int).tolist())
+        jornadas = sorted([int(c) for c in pivot.columns])
 
-    # Paleta: verde menta → azul oscuro según nº jornadas
-    palette = px.colors.sample_colorscale(
-        "Teal", [i / max(len(jornadas) - 1, 1) for i in range(len(jornadas))]
-    ) if len(jornadas) > 1 else [ACCENT]
+        palette = px.colors.sample_colorscale(
+            "Teal", [i / max(len(jornadas) - 1, 1) for i in range(len(jornadas))]
+        ) if len(jornadas) > 1 else [ACCENT]
 
-    fig = go.Figure()
-    for i, jornada in enumerate(jornadas):
-        df_j = df_work[df_work["Jornada"] == jornada].set_index("Alias")
-        x_vals = [
-            round(df_j.loc[p, "Distancia Total"], 3) if p in df_j.index else 0.0
-            for p in order
-        ]
-        text_vals = [
-            f"{v:.3f} km" if v > 0 else ""
-            for v in x_vals
-        ]
-        fig.add_trace(go.Bar(
-            y=order,
-            x=x_vals,
-            name=f"Jornada {jornada}",
-            orientation="h",
-            marker_color=palette[i],
-            text=text_vals,
-            textposition="inside",
-            insidetextanchor="middle",
-            textfont=dict(size=9),
-            hovertemplate=(
-                "<b>%{y}</b><br>"
-                f"Jornada {jornada}: %{{x:.3f}} km<extra></extra>"
+        fig = go.Figure()
+        for i, jornada in enumerate(jornadas):
+            vals = [float(pivot.loc[p, jornada]) if jornada in pivot.columns else 0.0
+                    for p in pivot.index]
+            texts = [f"{v:.3f} km" if v > 0.0 else "" for v in vals]
+            fig.add_trace(go.Bar(
+                y=list(pivot.index),
+                x=vals,
+                name=f"Jornada {jornada}",
+                orientation="h",
+                marker_color=palette[i],
+                text=texts,
+                textposition="inside",
+                insidetextanchor="middle",
+                textfont=dict(size=9),
+                hovertemplate=(
+                    "<b>%{y}</b><br>"
+                    f"Jornada {jornada}: %{{x:.3f}} km<extra></extra>"
+                ),
+            ))
+
+        layout = dict(**_LAYOUT)
+        layout["margin"] = dict(l=10, r=10, t=70, b=10)
+        fig.update_layout(
+            **layout,
+            barmode="stack",
+            title=f"🏃 Distancia total por partido · Top {top_n} jugadores",
+            xaxis_title="Distancia Total (km)",
+            yaxis_title="",
+            height=520,
+            legend=dict(
+                title="Jornada", bgcolor="rgba(0,0,0,0)",
+                orientation="h", yanchor="bottom", y=1.02,
+                xanchor="right", x=1,
             ),
-        ))
+        )
+    except Exception as e:
+        return _empty_fig(f"Error al generar gráfico de distancia: {e}")
 
-    fig.update_layout(
-        **_LAYOUT,
-        barmode="stack",
-        title=f"🏃 Distancia total por partido · Top {top_n} jugadores",
-        xaxis_title="Distancia Total (km)",
-        yaxis_title="",
-        height=520,
-        legend=dict(
-            title="Jornada",
-            bgcolor="rgba(0,0,0,0)",
-            orientation="h",
-            yanchor="bottom", y=1.02,
-            xanchor="right", x=1,
-        ),
-        margin=dict(l=10, r=10, t=70, b=10),
-    )
     return fig
 
 
 def chart_velocidad_maxima_jugadores(df: pd.DataFrame, top_n: int = 10) -> go.Figure:
     """
     Barras verticales AGRUPADAS: velocidad máxima por jornada para los Top N jugadores
-    más rápidos del rango seleccionado.
-    Etiqueta con el valor máximo en la barra más alta de cada jugador.
+    más rápidos. Etiqueta en la barra de mayor velocidad de cada jugador.
     """
     needed = {"Alias", "Jornada", "Velocidad Maxima Total"}
     if not needed.issubset(df.columns):
         return _empty_fig("Columna 'Velocidad Maxima Total' no disponible")
 
-    df_work = df[["Alias", "Jornada", "Velocidad Maxima Total"]].dropna().copy()
+    try:
+        df_work = (
+            df[["Alias", "Jornada", "Velocidad Maxima Total"]]
+            .dropna()
+            .copy()
+        )
+        df_work["Velocidad Maxima Total"] = pd.to_numeric(
+            df_work["Velocidad Maxima Total"], errors="coerce"
+        ).fillna(0)
 
-    # Top N jugadores por velocidad máxima en el rango
-    top_players = (
-        df_work.groupby("Alias")["Velocidad Maxima Total"]
-        .max()
-        .nlargest(top_n)
-        .index.tolist()
-    )
-    df_work = df_work[df_work["Alias"].isin(top_players)]
+        # Pivot: filas=Alias, columnas=Jornada, valores=máximo de velocidad
+        pivot = (
+            df_work.groupby(["Alias", "Jornada"])["Velocidad Maxima Total"]
+            .max()
+            .unstack(fill_value=0.0)
+        )
 
-    # Orden izq→der: mayor velocidad máxima a la izquierda
-    order = (
-        df_work.groupby("Alias")["Velocidad Maxima Total"]
-        .max()
-        .sort_values(ascending=False)
-        .index.tolist()
-    )
+        # Top N jugadores por velocidad máxima
+        pivot["_max"] = pivot.max(axis=1)
+        pivot = pivot.nlargest(top_n, "_max")
+        order = pivot["_max"].sort_values(ascending=False).index.tolist()
+        pivot = pivot.drop(columns="_max").loc[order]
 
-    jornadas = sorted(df_work["Jornada"].dropna().unique().astype(int).tolist())
+        # Máximo absoluto por jugador (para la etiqueta)
+        max_vel = pivot.max(axis=1).to_dict()
 
-    palette = px.colors.sample_colorscale(
-        "Teal", [i / max(len(jornadas) - 1, 1) for i in range(len(jornadas))]
-    ) if len(jornadas) > 1 else [ACCENT]
+        jornadas = sorted([int(c) for c in pivot.columns])
 
-    # Precalcular la velocidad máxima absoluta por jugador (para la etiqueta)
-    max_vel_por_jugador = (
-        df_work.groupby("Alias")["Velocidad Maxima Total"].max().to_dict()
-    )
+        palette = px.colors.sample_colorscale(
+            "Teal", [i / max(len(jornadas) - 1, 1) for i in range(len(jornadas))]
+        ) if len(jornadas) > 1 else [ACCENT]
 
-    fig = go.Figure()
-    for i, jornada in enumerate(jornadas):
-        df_j = df_work[df_work["Jornada"] == jornada].set_index("Alias")
-        y_vals = [
-            round(float(df_j.loc[p, "Velocidad Maxima Total"]), 1) if p in df_j.index else None
-            for p in order
-        ]
-        # Etiqueta solo en la barra que coincide con el máximo absoluto del jugador
-        text_vals = []
-        for p, v in zip(order, y_vals):
-            if v is not None and abs(v - max_vel_por_jugador.get(p, 0)) < 0.05:
-                text_vals.append(f"{v:.1f}")
-            else:
-                text_vals.append("")
+        fig = go.Figure()
+        for i, jornada in enumerate(jornadas):
+            vals = [float(pivot.loc[p, jornada]) if jornada in pivot.columns else None
+                    for p in order]
+            texts = []
+            for p, v in zip(order, vals):
+                if v is not None and v > 0 and abs(v - float(max_vel.get(p, 0))) < 0.05:
+                    texts.append(f"{v:.1f}")
+                else:
+                    texts.append("")
+            fig.add_trace(go.Bar(
+                x=order,
+                y=vals,
+                name=f"Jornada {jornada}",
+                marker_color=palette[i],
+                text=texts,
+                textposition="outside",
+                textfont=dict(size=9, color="#ccd6f6"),
+                hovertemplate=(
+                    "<b>%{x}</b><br>"
+                    f"Jornada {jornada}: %{{y:.1f}} km/h<extra></extra>"
+                ),
+            ))
 
-        fig.add_trace(go.Bar(
-            x=order,
-            y=y_vals,
-            name=f"Jornada {jornada}",
-            marker_color=palette[i],
-            text=text_vals,
-            textposition="outside",
-            textfont=dict(size=9, color="#ccd6f6"),
-            hovertemplate=(
-                "<b>%{x}</b><br>"
-                f"Jornada {jornada}: %{{y:.1f}} km/h<extra></extra>"
+        vel_max_global = float(df_work["Velocidad Maxima Total"].max())
+        media_vel = float(df_work["Velocidad Maxima Total"].mean())
+        fig.add_hline(
+            y=media_vel, line_dash="dot", line_color=RED,
+            annotation_text=f"Media {media_vel:.1f} km/h",
+            annotation_position="right",
+            annotation_font=dict(color=RED, size=10),
+        )
+
+        layout = dict(**_LAYOUT)
+        layout["margin"] = dict(l=10, r=10, t=70, b=10)
+        fig.update_layout(
+            **layout,
+            barmode="group",
+            title=f"⚡ Top {top_n} jugadores más rápidos · Velocidad máxima por jornada",
+            xaxis_title="Jugador",
+            yaxis_title="Velocidad Máxima (km/h)",
+            height=460,
+            legend=dict(
+                title="Jornada", bgcolor="rgba(0,0,0,0)",
+                orientation="h", yanchor="bottom", y=1.02,
+                xanchor="right", x=1,
             ),
-        ))
+            yaxis=dict(range=[0, vel_max_global * 1.15]),
+        )
+    except Exception as e:
+        return _empty_fig(f"Error al generar gráfico de velocidad: {e}")
 
-    # Línea de referencia: media de velocidad máxima de todos los jugadores
-    media_vel = df_work["Velocidad Maxima Total"].mean()
-    fig.add_hline(
-        y=media_vel,
-        line_dash="dot",
-        line_color=RED,
-        annotation_text=f"Media {media_vel:.1f} km/h",
-        annotation_position="right",
-        annotation_font=dict(color=RED, size=10),
-    )
-
-    fig.update_layout(
-        **_LAYOUT,
-        barmode="group",
-        title=f"⚡ Top {top_n} jugadores más rápidos · Velocidad máxima por jornada",
-        xaxis_title="Jugador",
-        yaxis_title="Velocidad Máxima (km/h)",
-        height=460,
-        legend=dict(
-            title="Jornada",
-            bgcolor="rgba(0,0,0,0)",
-            orientation="h",
-            yanchor="bottom", y=1.02,
-            xanchor="right", x=1,
-        ),
-        margin=dict(l=10, r=10, t=70, b=10),
-        yaxis=dict(range=[0, df_work["Velocidad Maxima Total"].max() * 1.15]),
-    )
     return fig
 
 
