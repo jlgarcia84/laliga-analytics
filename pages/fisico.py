@@ -17,7 +17,8 @@ _APP_DIR  = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _CSV_FISICO = os.path.join(_APP_DIR, "LaLigaRendimiento_Fisico.csv")
 from data.api_client import render_api_key_input, fetch_matches
 from utils.charts import (
-    chart_top_jugadores, chart_demarcacion_box, chart_evolucion_jornada,
+    chart_distancia_por_jornada, chart_velocidad_maxima_jugadores,
+    chart_evolucion_jornada,
 )
 from utils.print_utils import inject_print_css, render_print_button
 from utils.pdf_export import generate_pdf_fisico
@@ -174,12 +175,18 @@ def render() -> None:
         # ════════════════════════════════════════════════════════════════
         st.subheader("📈 Visualizaciones")
 
-        # Fila 1: top jugadores + box demarcación
+        # Fila 1: distancia por jornada (apilado) + velocidad máxima (agrupado)
         v1, v2 = st.columns(2)
         with v1:
-            st.plotly_chart(chart_top_jugadores(df, top_n=15), use_container_width=True)
+            st.plotly_chart(
+                chart_distancia_por_jornada(df, top_n=15),
+                use_container_width=True,
+            )
         with v2:
-            st.plotly_chart(chart_demarcacion_box(df), use_container_width=True)
+            st.plotly_chart(
+                chart_velocidad_maxima_jugadores(df, top_n=10),
+                use_container_width=True,
+            )
 
         # Gráfico de evolución — siempre consulta TODAS las jornadas del jugador
         st.markdown("##### 📈 Evolución temporal de un jugador")
