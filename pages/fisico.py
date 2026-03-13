@@ -4,11 +4,17 @@ Fuente 1 → SQLite  |  Fuente 2 → API football-data.org
 Incluye: visualizaciones Plotly, botón imprimir, exportar a PDF
 """
 
+import os
 import streamlit as st
+import pandas as pd
 from data.database import (
     query_rendimiento, get_equipos_fisico_lista, get_jugadores_lista,
-    get_db_info, init_database, query_evolucion_jugador,
+    get_db_info, init_database,
 )
+
+# Ruta al CSV físico (igual lógica que database.py)
+_APP_DIR  = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_CSV_FISICO = os.path.join(_APP_DIR, "LaLigaRendimiento_Fisico.csv")
 from data.api_client import render_api_key_input, fetch_matches
 from utils.charts import (
     chart_top_jugadores, chart_demarcacion_box, chart_evolucion_jornada,
@@ -195,9 +201,23 @@ def render() -> None:
                     index=default_idx,
                     key="jug_evo",
                 )
-                # Consulta independiente con TODAS las jornadas (sin límite ni caché)
-                df_evo = query_evolucion_jugador(jug_evo)
-                st.caption(f"🔍 Debug: {len(df_evo)} jornadas encontradas para {jug_evo}")
+                # Leer CSV directamente — sin funciones externas, sin caché
+                try:
+                    df_evo = pd.read_csv(
+                        _CSV_FISICO, encoding="utf-8-sig",
+                        usecols=["Alias", "Jornada", "Minutos jugados"],
+                    )
+                    df_evo = (
+                        df_evo[df_evo["Alias"] == jug_evo]
+                        [["Jornada", "Minutos jugados"]]
+                        .sort_values("Jornada")
+                        .reset_index(drop=True)
+                    )
+                except Exception as exc:
+                    st.error(f"Error leyendo CSV de evolución: {exc}")
+                    df_evo = pd.DataFrame(columns=["Jornada", "Minutos jugados"])
+
+                st.caption(f"📊 {len(df_evo)} jornadas registradas para {jug_evo}")
                 st.plotly_chart(
                     chart_evolucion_jornada(df_evo, jug_evo),
                     use_container_width=True,
