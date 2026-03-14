@@ -275,6 +275,11 @@ def chart_distancia_por_jornada(df: pd.DataFrame, top_n: int = 15) -> go.Figure:
 
         layout = dict(**_LAYOUT)
         layout["margin"] = dict(l=10, r=10, t=70, b=10)
+        layout["legend"] = dict(
+            title="Jornada", bgcolor="rgba(0,0,0,0)",
+            orientation="h", yanchor="bottom", y=1.02,
+            xanchor="right", x=1,
+        )
         fig.update_layout(
             **layout,
             barmode="stack",
@@ -282,11 +287,6 @@ def chart_distancia_por_jornada(df: pd.DataFrame, top_n: int = 15) -> go.Figure:
             xaxis_title="Distancia Total (km)",
             yaxis_title="",
             height=520,
-            legend=dict(
-                title="Jornada", bgcolor="rgba(0,0,0,0)",
-                orientation="h", yanchor="bottom", y=1.02,
-                xanchor="right", x=1,
-            ),
         )
     except Exception as e:
         return _empty_fig(f"Error al generar gráfico de distancia: {e}")
@@ -370,6 +370,11 @@ def chart_velocidad_maxima_jugadores(df: pd.DataFrame, top_n: int = 10) -> go.Fi
 
         layout = dict(**_LAYOUT)
         layout["margin"] = dict(l=10, r=10, t=70, b=10)
+        layout["legend"] = dict(
+            title="Jornada", bgcolor="rgba(0,0,0,0)",
+            orientation="h", yanchor="bottom", y=1.02,
+            xanchor="right", x=1,
+        )
         fig.update_layout(
             **layout,
             barmode="group",
@@ -377,11 +382,6 @@ def chart_velocidad_maxima_jugadores(df: pd.DataFrame, top_n: int = 10) -> go.Fi
             xaxis_title="Jugador",
             yaxis_title="Velocidad Máxima (km/h)",
             height=460,
-            legend=dict(
-                title="Jornada", bgcolor="rgba(0,0,0,0)",
-                orientation="h", yanchor="bottom", y=1.02,
-                xanchor="right", x=1,
-            ),
             yaxis=dict(range=[0, vel_max_global * 1.15]),
         )
     except Exception as e:
